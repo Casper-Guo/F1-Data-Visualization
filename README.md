@@ -1,5 +1,7 @@
 # F1-Data-Visualization
-Simple functions to visualize lap time and tyre usage data from all races of the 2021 and 2022 F1 seasons
+Simple functions to visualize lap time and tyre usage data from all races of the 2021 and 2022 F1 seasons.
+
+Website being built in this [repo](https://github.com/brianmakesthings/F1-Web-Server.git).
 
 ## Requirements 
 Use `pip install -r requirements.txt` to install all dependencies.
@@ -7,7 +9,7 @@ Use `pip install -r requirements.txt` to install all dependencies.
 ## General Information
 
 ### Data Freshness
-`transformed_laps_2021.csv` covers all 22 races of the 2021 season
+`transformed_laps_2021.csv` covers all 22 races of the 2021 season.
 
 `transformed_laps_2022.csv` has coverage up until round 13, the Hungarian Grand Prix. (updated 08/06/22)
 
@@ -22,8 +24,8 @@ There are four plotting functions provided in `visualizations.ipynb`. Their usag
 
 - `tyre_usage_pie`: Visualize the frequency of compound usage within a season and allows filtering by events and drivers
 - `plot_driver_lap_times`: Visualize driver lap time data within a single event. Allows selecting any number of drivers
-- `plot_compounds_lineplot`: Visualize tyre performance over time by compound as line charts. Allows selecting any number of events from either the 2021 or the 2022 season.
-- `plot_compounds_boxplot`: Visualize tyre performance over time by compound as boxplots. Allows selecting any number of events from either the 2021 or the 2022 season.
+- `plot_compounds_lineplot`: Visualize tyre performance over time by compound as line charts. Allows selecting any number of events from either the 2021 or the 2022 season
+- `plot_compounds_boxplot`: Visualize tyre performance over time by compound as boxplots. Allows selecting any number of events from either the 2021 or the 2022 season
 
 ### Metrics Definitions
 Detailed metric definitions can be found in the `data_transformation.ipynb` file. Here we present a list of columns available in the csvs.
