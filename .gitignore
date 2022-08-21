@@ -11,8 +11,9 @@ main
 *.dSYM
 *.stackdump
 
-# Cache Directory
+# Subdirectories
 /Cache 
+/Graphs
 
 # checkpoints directory
 /.ipynb_checkpoints
