@@ -6,7 +6,7 @@ description = "Transformed data and visualization tools for all Formula 1 races 
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "fastf1 >= 3.3.0, < 3.4.0",
+    "fastf1 >= 3.4.0",
     "pandas >= 1.5.0",
     "matplotlib >= 3.7.0",
     "numpy >= 1.26.0, < 2.0.0",
