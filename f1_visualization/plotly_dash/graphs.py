@@ -174,7 +174,7 @@ def stats_scatterplot(
                     "color": driver_laps[args[0]].map(args[1]),
                     "symbol": driver_laps["FreshTyre"].map(VISUAL_CONFIG["fresh"]["markers"]),
                 },
-                name=f"{driver}",
+                name=driver,
             ),
             row=row,
             col=col,
@@ -209,13 +209,8 @@ def stats_lineplot(
     if y in {"PctFromLapRep", "DeltaToLapRep"}:
         included_laps = included_laps[included_laps["PctFromLapRep"] > -5]
 
-    for index, driver in enumerate(reversed(drivers)):
+    for _, driver in enumerate(reversed(drivers)):
         driver_laps = included_laps[(included_laps["Driver"] == driver)]
-
-        # the top left subplot is indexed (1, 1)
-        row, col = divmod(index, 4)
-        row += 1
-        col += 1
 
         fig.add_trace(
             go.Scatter(
@@ -223,7 +218,7 @@ def stats_lineplot(
                 y=driver_laps[y],
                 mode="lines",
                 line={"color": pick_driver_color(driver)},
-                name=f"{driver}",
+                name=driver,
             )
         )
 
@@ -253,7 +248,7 @@ def stats_distplot(
     drivers: list[str],
     boxplot: bool,
 ) -> go.Figure:
-    """Make distribution plot of lap times, with optional swarm and boxplots."""
+    """Make distribution plot of lap times, either as boxplot or as violin plot."""
     fig = go.Figure()
 
     for driver in drivers:
@@ -286,6 +281,70 @@ def stats_distplot(
         template="plotly_dark",
         xaxis_title="Driver",
         yaxis_title="Lap Time (s)",
+        showlegend=False,
+        autosize=False,
+        width=1250,
+        height=500,
+    )
+    return fig
+
+
+def compounds_lineplot(included_laps: pd.DataFrame, y: str, compounds: list[str]) -> go.Figure:
+    """Plot compound degradation curve as a lineplot."""
+    fig = go.Figure()
+    yaxis_title = "Seconds to LRT" if y == "DeltaToLapRep" else "Percent from LRT"
+
+    # TODO: remove this hard-coded value
+    _, palette, marker, _ = _plot_args(2024)
+
+    for compound in compounds:
+        compound_laps = included_laps[included_laps["Compound"] == compound]
+        # clip tyre life range to where there are at least three records
+        tyre_life_range = compound_laps.groupby("TyreLife").size()
+        tyre_life_range = tyre_life_range[tyre_life_range >= 3].index
+        median_LRT = compound_laps.groupby("TyreLife")[y].median(numeric_only=True)  # noqa: N806
+        median_LRT = median_LRT.loc[tyre_life_range]  # noqa: N806
+
+        fig.add_trace(
+            go.Scatter(
+                x=tyre_life_range,
+                y=median_LRT,
+                line={"color": palette[compound]},
+                marker={
+                    # TODO: tune these parameters
+                    "line": {"width": 1, "color": "white"},
+                    "color": palette[compound],
+                    "symbol": marker[compound],
+                    "size": 8,
+                },
+                mode="lines+markers",
+                name=compound,
+            )
+        )
+
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis_title="Tyre Age",
+        yaxis_title=yaxis_title,
+        showlegend=False,
+        autosize=False,
+        width=1250,
+        height=500,
+    )
+    return fig
+
+
+def compounds_distplot(
+    included_laps: pd.DataFrame, y: str, compounds: list[str], violin_plot: bool
+) -> go.Figure:
+    """PLot compound performance vs tyre age as either a boxplot or violin plot."""
+    fig = go.Figure()
+    yaxis_title = "Seconds to LRT" if y == "DeltaToLapRep" else "Percent from LRT"
+
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis_title="Tyre Age",
+        yaxis_title=yaxis_title,
         showlegend=False,
         autosize=False,
         width=1250,
