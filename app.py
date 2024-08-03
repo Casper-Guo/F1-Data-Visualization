@@ -8,13 +8,8 @@ import pandas as pd
 from dash import Dash, Input, Output, State, callback
 from plotly import graph_objects as go
 
+import f1_visualization.plotly_dash.graphs as pg
 from f1_visualization._consts import CURRENT_SEASON, SPRINT_FORMATS
-from f1_visualization.plotly_dash.graphs import (
-    stats_distplot,
-    stats_lineplot,
-    stats_scatterplot,
-    strategy_barplot,
-)
 from f1_visualization.plotly_dash.layout import (
     app_layout,
 )
@@ -226,7 +221,7 @@ def render_strategy_plot(
     included_laps = included_laps[included_laps["Driver"].isin(drivers)]
 
     event_name = session_info[1]
-    fig = strategy_barplot(included_laps, drivers)
+    fig = pg.strategy_barplot(included_laps, drivers)
     fig.update_layout(title=event_name)
     return fig
 
@@ -261,7 +256,7 @@ def render_scatterplot(
         & (included_laps["LapNumber"].isin(lap_interval))
     ]
 
-    fig = stats_scatterplot(included_laps, drivers, y)
+    fig = pg.stats_scatterplot(included_laps, drivers, y)
     event_name = session_info[1]
     fig.update_layout(title=event_name)
 
@@ -300,7 +295,7 @@ def render_lineplot(
         & (included_laps["LapNumber"].isin(lap_interval))
     ]
 
-    fig = stats_lineplot(included_laps, drivers, y, upper_bound)
+    fig = pg.stats_lineplot(included_laps, drivers, y, upper_bound)
     event_name = session_info[1]
     fig.update_layout(title=event_name)
 
@@ -332,7 +327,7 @@ def render_distplot(
         & (included_laps["PctFromFastest"] < (upper_bound - 100))
     ]
 
-    fig = stats_distplot(included_laps, drivers, boxplot)
+    fig = pg.stats_distplot(included_laps, drivers, boxplot)
     event_name = session_info[1]
     fig.update_layout(title=event_name)
 
