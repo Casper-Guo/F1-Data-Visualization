@@ -33,14 +33,13 @@ def df_convert_timedelta(df: pd.DataFrame) -> pd.DataFrame:
     The pd.Timedelta type is not JSON serializable.
     Columns with this data type need to be dropped or converted.
     """
-    # The Time column is dropped directly since its information is retained by LapTime
-    df = df.drop(columns=["Time"])
-    # PitOUtTime and PitInTime contains information that we might need later
-    df[["PitInTime", "PitOutTime"]] = df[["PitInTime", "PitOutTime"]].fillna(
-        pd.Timedelta(0, unit="ms")
-    )
-    df["PitInTime"] = df["PitInTime"].dt.total_seconds()
-    df["PitOutTime"] = df["PitOutTime"].dt.total_seconds()
+    timedelta_columns = ["Time", "PitInTime", "PitOutTime"]
+    # usually the Time column has no NaT values
+    # it is included here for consistency
+    df[timedelta_columns] = df[timedelta_columns].fillna(pd.Timedelta(0, unit="ms"))
+
+    for column in timedelta_columns:
+        df[column] = df[column].dt.total_seconds()
     return df
 
 
