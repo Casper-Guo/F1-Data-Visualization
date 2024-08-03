@@ -33,6 +33,16 @@ INTERMEDIATE = "#43b02a"
 WET = "#0067ad"
 UNKNOWN = "#00ffff"
 
+# For display on a white background
+# the customary palette is kept unchanged where the contrast is sufficiently high
+[relative.high_contrast_palette]
+SOFT = "#da291c"
+MEDIUM = "8a6d00"
+HARD = "#000000"
+INTERMEDIATE = "#276719"
+WET = "#0067ad"
+UNKNOWN = "#004aaa"
+
 [relative.markers]
 SOFT = "circle"
 MEDIUM = "triangle-up"

@@ -1,15 +1,19 @@
 """Dash app layout and callbacks."""
 
-from typing import TypeAlias
+from pathlib import Path
+from typing import Iterable, TypeAlias
 
 import dash_bootstrap_components as dbc
 import fastf1 as f
 import pandas as pd
-from dash import Dash, Input, Output, State, callback
+import tomli
+from dash import Dash, Input, Output, State, callback, html
 from plotly import graph_objects as go
 
 from f1_visualization._consts import CURRENT_SEASON, SPRINT_FORMATS
 from f1_visualization.plotly_dash.graphs import (
+    compounds_distplot,
+    compounds_lineplot,
     stats_distplot,
     stats_lineplot,
     stats_scatterplot,
@@ -24,6 +28,16 @@ Session_info: TypeAlias = tuple[int, str, list[str]]
 
 # must not be modified
 DF_DICT = load_laps()
+
+with open(
+    Path(__file__).absolute().parent
+    / "f1_visualization"
+    / "plotly_dash"
+    / "visualization_config.toml",
+    "rb",
+) as toml:
+    # TODO: revisit the palette
+    COMPOUND_PALETTE = tomli.load(toml)["relative"]["high_contrast_palette"]
 
 
 def df_convert_timedelta(df: pd.DataFrame) -> pd.DataFrame:
@@ -143,10 +157,30 @@ def enable_load_session(season: int | None, event: str | None, session: str | No
     return not (season is not None and event is not None and session is not None)
 
 
+def create_compound_dropdown_options(compounds: Iterable[str]) -> list[dict]:
+    """Create compound dropdown options with styling."""
+    # sort the compounds
+    compound_order = ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]
+    compound_index = [compound_order.index(compound) for compound in compounds]
+    sorted_compounds = sorted(zip(compounds, compound_index), key=lambda x: x[1])
+    compounds = [compound for compound, _ in sorted_compounds]
+
+    return [
+        {
+            "label": html.Span(compound, style={"color": COMPOUND_PALETTE[compound]}),
+            "value": compound,
+        }
+        for compound in compounds
+    ]
+
+
 @callback(
     Output("drivers", "options"),
     Output("drivers", "value"),
     Output("drivers", "disabled"),
+    Output("compounds", "options"),
+    Output("compounds", "value"),
+    Output("compounds", "disabled"),
     Output("session-info", "data"),
     Output("laps", "data"),
     Input("load-session", "n_clicks"),
@@ -162,9 +196,9 @@ def get_session_metadata(
     event: str,
     session: str,
     teammate_comp: bool,
-) -> tuple[list[str], list, bool, Session_info, dict]:
+) -> tuple[list[str], list, bool, list[dict], list, bool, Session_info, dict]:
     """
-    Store session metadata and populate driver dropdown.
+    Store session metadata and populate driver and compound dropdown.
 
     Can assume that season, event, and session are all set (not None).
     """
@@ -176,10 +210,21 @@ def get_session_metadata(
     included_laps = included_laps[included_laps["RoundNumber"] == round_number]
     included_laps = df_convert_timedelta(included_laps)
 
+    completed_laps = included_laps.groupby("Compound").size()
+    min_laps = included_laps.shape[0] // 6
+    # only include compounds that completed at least one sixth of all laps
+    included_compounds = list(completed_laps[completed_laps > min_laps].index)
+
     return (
+        # driver dropdown options
         drivers,
         drivers,
         False,
+        # compound dropdown options
+        create_compound_dropdown_options(included_compounds),
+        included_compounds,
+        False,
+        # data
         (round_number, event_name, drivers),
         included_laps.to_dict(),
     )
@@ -337,6 +382,50 @@ def render_distplot(
     event_name = session_info[1]
     fig.update_layout(title=event_name)
 
+    return fig
+
+
+@callback(
+    Output("compound-plot", "figure"),
+    Input("compounds", "value"),
+    Input("compound-type", "value"),
+    Input("compound-unit", "value"),
+    State("laps", "data"),
+    State("session-info", "data"),
+)
+def render_compound_plot(
+    compounds: list[str],
+    plot_type: str,
+    show_seconds: bool,
+    included_laps: dict,
+    session_info: Session_info,
+) -> go.Figure:
+    """Filter laps and render compound performance plot."""
+    if not included_laps or not compounds:
+        return go.Figure()
+
+    included_laps = pd.DataFrame.from_dict(included_laps)
+    included_laps = included_laps[
+        (included_laps["Compound"].isin(compounds)) & (included_laps["PctFromLapRep"] <= 10)
+    ]
+
+    y = "DeltaToLapRep" if show_seconds else "PctFromLapRep"
+    fig = go.Figure()
+
+    match plot_type:
+        case "lineplot":
+            fig = compounds_lineplot(included_laps, y, compounds)
+        case "boxplot":
+            fig = compounds_distplot(included_laps, y, compounds, False)
+        case "violinplot":
+            fig = compounds_distplot(included_laps, y, compounds, True)
+        case _:
+            # this should never be triggered
+            # but just in case, return empty plot
+            return fig
+
+    event_name = session_info[1]
+    fig.update_layout(title=event_name)
     return fig
 
 

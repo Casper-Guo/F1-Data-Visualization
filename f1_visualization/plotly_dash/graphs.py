@@ -174,7 +174,7 @@ def stats_scatterplot(
                     "color": driver_laps[args[0]].map(args[1]),
                     "symbol": driver_laps["FreshTyre"].map(VISUAL_CONFIG["fresh"]["markers"]),
                 },
-                name=f"{driver}",
+                name=driver,
             ),
             row=row,
             col=col,
@@ -194,8 +194,6 @@ def stats_lineplot(
     included_laps: pd.DataFrame, drivers: list[str], y: str, upper_bound: int
 ) -> go.Figure:
     """Make lineplots showing a statistic."""
-    # TODO: incorporate the add_gap functionality
-
     # Identify SC and VSC laps before filtering for upper bound
     sc_laps, vsc_laps = _find_sc_laps(included_laps)
 
@@ -211,13 +209,8 @@ def stats_lineplot(
     if y in {"PctFromLapRep", "DeltaToLapRep"}:
         included_laps = included_laps[included_laps["PctFromLapRep"] > -5]
 
-    for index, driver in enumerate(reversed(drivers)):
+    for _, driver in enumerate(reversed(drivers)):
         driver_laps = included_laps[(included_laps["Driver"] == driver)]
-
-        # the top left subplot is indexed (1, 1)
-        row, col = divmod(index, 4)
-        row += 1
-        col += 1
 
         fig.add_trace(
             go.Scatter(
@@ -225,7 +218,7 @@ def stats_lineplot(
                 y=driver_laps[y],
                 mode="lines",
                 line={"color": pick_driver_color(driver)},
-                name=f"{driver}",
+                name=driver,
             )
         )
 
@@ -255,7 +248,7 @@ def stats_distplot(
     drivers: list[str],
     boxplot: bool,
 ) -> go.Figure:
-    """Make distribution plot of lap times, with optional swarm and boxplots."""
+    """Make distribution plot of lap times, either as boxplot or as violin plot."""
     fig = go.Figure()
 
     for driver in drivers:
@@ -288,6 +281,118 @@ def stats_distplot(
         template="plotly_dark",
         xaxis_title="Driver",
         yaxis_title="Lap Time (s)",
+        showlegend=False,
+        autosize=False,
+        width=1250,
+        height=500,
+    )
+    return fig
+
+
+def compounds_lineplot(included_laps: pd.DataFrame, y: str, compounds: list[str]) -> go.Figure:
+    """Plot compound degradation curve as a lineplot."""
+    fig = go.Figure()
+    yaxis_title = "Seconds to LRT" if y == "DeltaToLapRep" else "Percent from LRT"
+
+    _, palette, marker, _ = _plot_args()
+    max_stint_length = 0
+
+    for compound in compounds:
+        compound_laps = included_laps[included_laps["Compound"] == compound]
+        # clip tyre life range to where there are at least three records
+        tyre_life_range = compound_laps.groupby("TyreLife").size()
+        tyre_life_range = tyre_life_range[tyre_life_range >= 3].index
+        max_stint_length = max(max_stint_length, tyre_life_range.max())
+        median_LRT = compound_laps.groupby("TyreLife")[y].median(numeric_only=True)  # noqa: N806
+        median_LRT = median_LRT.loc[tyre_life_range]  # noqa: N806
+
+        fig.add_trace(
+            go.Scatter(
+                x=tyre_life_range,
+                y=median_LRT,
+                line={"color": palette[compound]},
+                marker={
+                    "line": {"width": 1, "color": "white"},
+                    "color": palette[compound],
+                    "symbol": marker[compound],
+                    "size": 8,
+                },
+                mode="lines+markers",
+                name=compound,
+            )
+        )
+
+    fig.update_layout(
+        template="plotly_dark",
+        xaxis={
+            "tickmode": "array",
+            "tickvals": list(range(5, max_stint_length, 5)),
+            "title": "Tyre Age",
+        },
+        yaxis_title=yaxis_title,
+        showlegend=False,
+        autosize=False,
+        width=1250,
+        height=500,
+    )
+    return fig
+
+
+def compounds_distplot(
+    included_laps: pd.DataFrame, y: str, compounds: list[str], violin_plot: bool
+) -> go.Figure:
+    """PLot compound performance vs tyre age as either a boxplot or violin plot."""
+    fig = go.Figure()
+    yaxis_title = "Seconds to LRT" if y == "DeltaToLapRep" else "Percent from LRT"
+
+    _, palette, _, _ = _plot_args()
+    max_stint_length = 0
+
+    for compound in compounds:
+        compound_laps = included_laps[included_laps["Compound"] == compound]
+        # clip tyre life range to where there are at least three records
+        tyre_life_range = compound_laps.groupby("TyreLife").size()
+        tyre_life_range = tyre_life_range[tyre_life_range >= 3].index
+        max_stint_length = max(max_stint_length, tyre_life_range.max())
+
+        compound_laps = compound_laps[compound_laps["TyreLife"].isin(tyre_life_range)]
+
+        if violin_plot:
+            fig.add_trace(
+                go.Violin(
+                    x=compound_laps["TyreLife"],
+                    y=compound_laps[y],
+                    fillcolor=palette[compound],
+                    line={"color": palette[compound]},
+                    name=compound,
+                    opacity=1,
+                    spanmode="soft",
+                )
+            )
+        else:
+            fig.add_trace(
+                go.Box(
+                    x=compound_laps["TyreLife"],
+                    y=compound_laps[y],
+                    boxpoints="outliers",
+                    pointpos=0,
+                    fillcolor=palette[compound],
+                    line={"color": "dimgray"},
+                    name=compound,
+                    showwhiskers=True,
+                )
+            )
+
+    fig.update_layout(
+        template="plotly_dark",
+        boxmode="group",
+        violinmode="group",
+        xaxis={
+            "tickmode": "array",
+            "tickvals": list(range(5, max_stint_length, 5)),
+            "title": "Tyre Age",
+        },
+        yaxis_title=yaxis_title,
         showlegend=False,
         autosize=False,
         width=1250,
