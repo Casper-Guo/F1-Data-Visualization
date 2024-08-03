@@ -294,14 +294,15 @@ def compounds_lineplot(included_laps: pd.DataFrame, y: str, compounds: list[str]
     fig = go.Figure()
     yaxis_title = "Seconds to LRT" if y == "DeltaToLapRep" else "Percent from LRT"
 
-    # TODO: remove this hard-coded value
-    _, palette, marker, _ = _plot_args(2024)
+    _, palette, marker, _ = _plot_args()
+    max_stint_length = 0
 
     for compound in compounds:
         compound_laps = included_laps[included_laps["Compound"] == compound]
         # clip tyre life range to where there are at least three records
         tyre_life_range = compound_laps.groupby("TyreLife").size()
         tyre_life_range = tyre_life_range[tyre_life_range >= 3].index
+        max_stint_length = max(max_stint_length, tyre_life_range.max())
         median_LRT = compound_laps.groupby("TyreLife")[y].median(numeric_only=True)  # noqa: N806
         median_LRT = median_LRT.loc[tyre_life_range]  # noqa: N806
 
@@ -311,7 +312,6 @@ def compounds_lineplot(included_laps: pd.DataFrame, y: str, compounds: list[str]
                 y=median_LRT,
                 line={"color": palette[compound]},
                 marker={
-                    # TODO: tune these parameters
                     "line": {"width": 1, "color": "white"},
                     "color": palette[compound],
                     "symbol": marker[compound],
@@ -324,7 +324,11 @@ def compounds_lineplot(included_laps: pd.DataFrame, y: str, compounds: list[str]
 
     fig.update_layout(
         template="plotly_dark",
-        xaxis_title="Tyre Age",
+        xaxis={
+            "tickmode": "array",
+            "tickvals": list(range(5, max_stint_length, 5)),
+            "title": "Tyre Age",
+        },
         yaxis_title=yaxis_title,
         showlegend=False,
         autosize=False,
@@ -341,9 +345,53 @@ def compounds_distplot(
     fig = go.Figure()
     yaxis_title = "Seconds to LRT" if y == "DeltaToLapRep" else "Percent from LRT"
 
+    _, palette, _, _ = _plot_args()
+    max_stint_length = 0
+
+    for compound in compounds:
+        compound_laps = included_laps[included_laps["Compound"] == compound]
+        # clip tyre life range to where there are at least three records
+        tyre_life_range = compound_laps.groupby("TyreLife").size()
+        tyre_life_range = tyre_life_range[tyre_life_range >= 3].index
+        max_stint_length = max(max_stint_length, tyre_life_range.max())
+
+        compound_laps = compound_laps[compound_laps["TyreLife"].isin(tyre_life_range)]
+
+        if violin_plot:
+            fig.add_trace(
+                go.Violin(
+                    x=compound_laps["TyreLife"],
+                    y=compound_laps[y],
+                    fillcolor=palette[compound],
+                    line={"color": palette[compound]},
+                    name=compound,
+                    opacity=1,
+                    spanmode="soft",
+                )
+            )
+        else:
+            fig.add_trace(
+                go.Box(
+                    x=compound_laps["TyreLife"],
+                    y=compound_laps[y],
+                    boxpoints="outliers",
+                    pointpos=0,
+                    fillcolor=palette[compound],
+                    line={"color": "dimgray"},
+                    name=compound,
+                    showwhiskers=True,
+                )
+            )
+
     fig.update_layout(
         template="plotly_dark",
-        xaxis_title="Tyre Age",
+        boxmode="group",
+        violinmode="group",
+        xaxis={
+            "tickmode": "array",
+            "tickvals": list(range(5, max_stint_length, 5)),
+            "title": "Tyre Age",
+        },
         yaxis_title=yaxis_title,
         showlegend=False,
         autosize=False,

@@ -161,7 +161,7 @@ compound_plot_caveats = dbc.Alert(
     [
         html.H4("Caveats", className="alert-heading"),
         html.P(
-            "The above driver selection does not apply to this plot. "
+            "The driver selections does not apply to this plot. "
             "This plot always considers laps driven by all drivers."
         ),
         html.Hr(),
@@ -170,11 +170,14 @@ compound_plot_caveats = dbc.Alert(
             "As the same tyre may have been used in qualifying sessions."
         ),
         html.Hr(),
-        html.P("Only compounds that completed at least one sixth of all laps are shown."),
+        html.P(
+            "Only compounds that completed at least one sixth of all laps are shown. "
+            "Outlier laps are filtered out."
+        ),
         html.Hr(),
         html.P(
             "For each compound, the range of shown tyre life is limited by "
-            "the number of drivers who complete a stint of that length. This is to avoid "
+            "the number of drivers who completed a stint of that length. This is to avoid "
             "the plot being stretched by one driver doing a very long stint."
         ),
     ],
@@ -193,7 +196,11 @@ compound_plot_tab = dbc.Tab(
                     [
                         dbc.Col(
                             dcc.Dropdown(
-                                options=["lineplot", "boxplot", "violinplot"],
+                                options=[
+                                    {"label": "Lineplot", "value": "lineplot"},
+                                    {"label": "Boxplot", "value": "boxplot"},
+                                    {"label": "Violin Plot", "value": "violinplot"},
+                                ],
                                 value="lineplot",
                                 clearable=False,
                                 placeholder="Select a plot type",
@@ -204,8 +211,8 @@ compound_plot_tab = dbc.Tab(
                         dbc.Col(
                             dcc.Dropdown(
                                 options=[
-                                    {"label": "Show as seconds", "value": True},
-                                    {"label": "Show as percentage", "value": False},
+                                    {"label": "Show delta as seconds", "value": True},
+                                    {"label": "Show delta as percentages", "value": False},
                                 ],
                                 value=True,
                                 clearable=False,

@@ -405,7 +405,9 @@ def render_compound_plot(
         return go.Figure()
 
     included_laps = pd.DataFrame.from_dict(included_laps)
-    included_laps = included_laps[included_laps["Compound"].isin(compounds)]
+    included_laps = included_laps[
+        (included_laps["Compound"].isin(compounds)) & (included_laps["PctFromLapRep"] <= 10)
+    ]
 
     y = "DeltaToLapRep" if show_seconds else "PctFromLapRep"
     fig = go.Figure()
