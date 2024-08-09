@@ -10,10 +10,8 @@ from plotly import graph_objects as go
 
 import f1_visualization.plotly_dash.graphs as pg
 from f1_visualization._consts import CURRENT_SEASON, SPRINT_FORMATS
-from f1_visualization.plotly_dash.layout import (
-    app_layout,
-)
-from f1_visualization.visualization import get_session_info, load_laps
+from f1_visualization.plotly_dash.layout import app_layout, line_y_options, scatter_y_options
+from f1_visualization.visualization import add_gap, get_session_info, load_laps
 
 Session_info: TypeAlias = tuple[int, str, list[str]]
 
@@ -131,6 +129,7 @@ def set_session_options(event: str | None, schedule: dict) -> tuple[list[dict], 
     Input("season", "value"),
     Input("event", "value"),
     Input("session", "value"),
+    prevent_initial_call=True,
 )
 def enable_load_session(season: int | None, event: str | None, session: str | None) -> bool:
     """Toggles load session button on when the previous three fields are filled."""
@@ -138,11 +137,7 @@ def enable_load_session(season: int | None, event: str | None, session: str | No
 
 
 @callback(
-    Output("drivers", "options"),
-    Output("drivers", "value"),
-    Output("drivers", "disabled"),
     Output("session-info", "data"),
-    Output("laps", "data"),
     Input("load-session", "n_clicks"),
     State("season", "value"),
     State("event", "value"),
@@ -156,9 +151,9 @@ def get_session_metadata(
     event: str,
     session: str,
     teammate_comp: bool,
-) -> tuple[list[str], list, bool, Session_info, dict]:
+) -> tuple[list[str], list, bool, Session_info]:
     """
-    Store session metadata and populate driver dropdown.
+    Store round number, event name, and the list of drivers into browser cache.
 
     Can assume that season, event, and session are all set (not None).
     """
@@ -166,17 +161,90 @@ def get_session_metadata(
         season, event, session, teammate_comp=teammate_comp
     )
 
+    return (round_number, event_name, drivers)
+
+
+@callback(
+    Output("laps", "data"),
+    Input("load-session", "n_clicks"),
+    State("season", "value"),
+    State("event", "value"),
+    State("session", "value"),
+    prevent_initial_call=True,
+)
+def get_session_laps(
+    _: int,  # ignores actual_value of n_clicks
+    season: int,
+    event: str,
+    session: str,
+) -> dict:
+    """
+    Save the laps of the selected session into browser cache.
+
+    Can assume that season, event, and session are all set (not None).
+    """
     included_laps = DF_DICT[season][session]
-    included_laps = included_laps[included_laps["RoundNumber"] == round_number]
+    included_laps = included_laps[included_laps["EventName"] == event]
     included_laps = df_convert_timedelta(included_laps)
 
-    return (
-        drivers,
-        drivers,
-        False,
-        (round_number, event_name, drivers),
-        included_laps.to_dict(),
-    )
+    return included_laps.to_dict()
+
+
+@callback(
+    Output("drivers", "options"),
+    Output("drivers", "value"),
+    Output("drivers", "disabled"),
+    Output("gap-drivers", "options"),
+    Output("gap-drivers", "value"),
+    Output("gap-drivers", "disabled"),
+    Input("session-info", "data"),
+    prevent_initial_call=True,
+)
+def set_driver_dropdowns(session_info: Session_info):
+    """Configure driver dropdowns."""
+    drivers = session_info[2]
+    return drivers, drivers, False, drivers, None, False
+
+
+@callback(
+    Output("scatter-y", "options"),
+    Output("line-y", "options"),
+    Input("laps", "data"),
+    prevent_initial_call=True,
+)
+def set_y_axis_dropdowns(data: dict) -> list[dict[str, str]]:
+    """Update y axis options based on the columns in the laps dataframe."""
+
+    def readable_gap_col_name(col: str) -> str:
+        """Convert Pandas GapTox column names to the more readable Gap to x."""
+        return f"Gap to {col[-3:]} (s)"
+
+    gap_cols = filter(lambda x: x.startswith("Gap"), data.keys())
+    gap_col_options = [{"label": readable_gap_col_name(col), "value": col} for col in gap_cols]
+    return scatter_y_options.extend(gap_col_options), line_y_options.extend(gap_col_options)
+
+
+@callback(
+    Output("laps", "data", allow_duplicate=True),
+    Input("add-gap", "n_clicks"),
+    State("gap-drivers", "value"),
+    State("laps", "data"),
+    running=[
+        (Output("gap-drivers", "disabled"), True, False),
+        (Output("add-gap", "disabled"), True, False),
+        (Output("add-gap", "children"), "Calculating...", "Add Gap"),
+        (Output("add-gap", "color"), "warning", "success"),
+    ],
+    prevent_initial_call=True,
+)
+def add_gap_to_driver(_: int, drivers: list[str], data: dict) -> dict:
+    """Amend the dataframe in cache and add driver gap columns."""
+    laps = pd.DataFrame.from_dict(data)
+    for driver in drivers:
+        if f"GapTo{driver}" not in laps.columns:
+            laps = add_gap(driver, laps)
+
+    return laps.to_dict()
 
 
 @callback(
@@ -335,4 +403,5 @@ def render_distplot(
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    # app.run(host="0.0.0.0", port=8000)
+    app.run(debug=True)

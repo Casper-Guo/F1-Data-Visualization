@@ -26,9 +26,132 @@ def lap_numbers_slider(slider_id: str, **kwargs) -> dcc.RangeSlider:
     )
 
 
+session_picker_row = dbc.Row(
+    [
+        dbc.Col(
+            dcc.Dropdown(
+                options=list(range(CURRENT_SEASON, 2017, -1)),
+                placeholder="Select a season",
+                value=None,
+                id="season",
+            )
+        ),
+        dbc.Col(
+            dcc.Dropdown(
+                options=[],
+                placeholder="Select a event",
+                value=None,
+                id="event",
+            ),
+        ),
+        dbc.Col(
+            dcc.Dropdown(
+                options=[],
+                placeholder="Select a session",
+                value=None,
+                id="session",
+            ),
+        ),
+        dbc.Col(
+            dcc.Dropdown(
+                options=[
+                    {"label": "Finishing order", "value": False},
+                    {"label": "Teammate side-by-side", "value": True},
+                ],
+                value=False,
+                clearable=False,
+                id="teammate-comp",
+            )
+        ),
+        dbc.Col(
+            dbc.Button(
+                children="Load Session / Reorder Drivers",
+                n_clicks=0,
+                disabled=True,
+                color="success",
+                id="load-session",
+            )
+        ),
+    ],
+)
+
+plotly_js_warning = dbc.Toast(
+    dcc.Markdown("""
+       You should see an empty plot in the tab below. If not:
+       * Make sure javascript is enabled
+       * Try accessing the page with a different browser
+    """),
+    id="plotly-warning",
+    header="How to fix plots not loading",
+)
+
+add_gap_card = dbc.Card(
+    [
+        dbc.CardHeader("Calculate gaps to drivers"),
+        dbc.CardBody(
+            [
+                dbc.Row(
+                    dcc.Dropdown(
+                        options=[],
+                        value=[],
+                        placeholder="Select drivers",
+                        disabled=True,
+                        multi=True,
+                        id="gap-drivers",
+                    )
+                ),
+                html.Br(),
+                dbc.Row(
+                    dbc.Col(
+                        dbc.Button(
+                            "Add Gap",
+                            color="success",
+                            n_clicks=0,
+                            id="add-gap",
+                        ),
+                    )
+                ),
+            ]
+        ),
+    ]
+)
+
+add_gap_row = dbc.Row(
+    [
+        dbc.Col(
+            [
+                plotly_js_warning,
+                dbc.Button(
+                    "Toggle Instruction",
+                    color="primary",
+                    id="plotly-warning-toggle",
+                ),
+            ],
+            width=4,
+        ),
+        dbc.Col(add_gap_card, width=8),
+    ]
+)
+
 strategy_tab = dbc.Tab(
     dbc.Card(dbc.CardBody(dcc.Loading(dcc.Graph(id="strategy-plot")))), label="strategy"
 )
+
+scatter_y_options = [
+    {"label": "Lap Time", "value": "LapTime"},
+    {"label": "Seconds to Median", "value": "DeltaToRep"},
+    {"label": "Percent from Median", "value": "PctFromRep"},
+    {"label": "Seconds to Fastest", "value": "DeltaToFastest"},
+    {"label": "Percent from Fastest", "value": "PctFromFastest"},
+    {
+        "label": "Seconds to Adjusted Representative Time",
+        "value": "DeltaToLapRep",
+    },
+    {
+        "label": "Percent from Adjusted Representative Time",
+        "value": "PctFromLapRep",
+    },
+]
 
 scatterplot_tab = dbc.Tab(
     dbc.Card(
@@ -36,21 +159,7 @@ scatterplot_tab = dbc.Tab(
             [
                 dbc.Row(
                     dcc.Dropdown(
-                        options=[
-                            {"label": "Lap Time", "value": "LapTime"},
-                            {"label": "Seconds to Median", "value": "DeltaToRep"},
-                            {"label": "Percent from Median", "value": "PctFromRep"},
-                            {"label": "Seconds to Fastest", "value": "DeltaToFastest"},
-                            {"label": "Percent from Fastest", "value": "PctFromFastest"},
-                            {
-                                "label": "Seconds to Adjusted Representative Time",
-                                "value": "DeltaToLapRep",
-                            },
-                            {
-                                "label": "Percent from Adjusted Representative Time",
-                                "value": "PctFromLapRep",
-                            },
-                        ],
+                        options=scatter_y_options,
                         value="LapTime",
                         placeholder="Select the variable to put in y-axis",
                         clearable=False,
@@ -71,28 +180,30 @@ scatterplot_tab = dbc.Tab(
     label="scatterplot",
 )
 
+line_y_options = [
+    {"label": "Position", "value": "Position"},
+    {"label": "Lap Time", "value": "LapTime"},
+    {"label": "Seconds to Median", "value": "DeltaToRep"},
+    {"label": "Percent from Median", "value": "PctFromRep"},
+    {"label": "Seconds to Fastest", "value": "DeltaToFastest"},
+    {"label": "Percent from Fastest", "value": "PctFromFastest"},
+    {
+        "label": "Seconds to Adjusted Representative Time",
+        "value": "DeltaToLapRep",
+    },
+    {
+        "label": "Percent from Adjusted Representative Time",
+        "value": "PctFromLapRep",
+    },
+]
+
 lineplot_tab = dbc.Tab(
     dbc.Card(
         dbc.CardBody(
             [
                 dbc.Row(
                     dcc.Dropdown(
-                        options=[
-                            {"label": "Position", "value": "Position"},
-                            {"label": "Lap Time", "value": "LapTime"},
-                            {"label": "Seconds to Median", "value": "DeltaToRep"},
-                            {"label": "Percent from Median", "value": "PctFromRep"},
-                            {"label": "Seconds to Fastest", "value": "DeltaToFastest"},
-                            {"label": "Percent from Fastest", "value": "PctFromFastest"},
-                            {
-                                "label": "Seconds to Adjusted Representative Time",
-                                "value": "DeltaToLapRep",
-                            },
-                            {
-                                "label": "Percent from Adjusted Representative Time",
-                                "value": "PctFromLapRep",
-                            },
-                        ],
+                        options=line_y_options,
                         value="Position",
                         placeholder="Select the variable to put in y-axis",
                         clearable=False,
@@ -139,16 +250,6 @@ distplot_tab = dbc.Tab(
     label="Distribution Plot",
 )
 
-plotly_js_warning = dbc.Toast(
-    dcc.Markdown("""
-       You should see an empty plot in the tab below. If not:
-       * Make sure javascript is enabled
-       * Try accessing the page with a different browser
-    """),
-    id="plotly-warning",
-    header="How to fix plots not loading",
-)
-
 external_links = dbc.Alert(
     [
         "All data provided by ",
@@ -171,57 +272,10 @@ external_links = dbc.Alert(
 app_layout = dbc.Container(
     [
         html.H1("Armchair Strategist"),
-        dbc.Row(
-            [
-                dbc.Col(
-                    dcc.Dropdown(
-                        options=list(range(CURRENT_SEASON, 2017, -1)),
-                        placeholder="Select a season",
-                        value=None,
-                        id="season",
-                    )
-                ),
-                dbc.Col(
-                    dcc.Dropdown(
-                        options=[],
-                        placeholder="Select a event",
-                        value=None,
-                        id="event",
-                    ),
-                ),
-                dbc.Col(
-                    dcc.Dropdown(
-                        options=[],
-                        placeholder="Select a session",
-                        value=None,
-                        id="session",
-                    ),
-                ),
-                dbc.Col(
-                    dcc.Dropdown(
-                        options=[
-                            {"label": "Finishing order", "value": False},
-                            {"label": "Teammate side-by-side", "value": True},
-                        ],
-                        value=False,
-                        clearable=False,
-                        id="teammate-comp",
-                    )
-                ),
-                dbc.Col(
-                    dbc.Button(
-                        children="Load Session / Reorder Drivers",
-                        n_clicks=0,
-                        disabled=True,
-                        color="success",
-                        id="load-session",
-                    )
-                ),
-                dcc.Store(id="event-schedule"),
-                dcc.Store(id="session-info"),
-                dcc.Store(id="laps"),
-            ],
-        ),
+        session_picker_row,
+        dcc.Store(id="event-schedule"),
+        dcc.Store(id="session-info"),
+        dcc.Store(id="laps"),
         html.Br(),
         dbc.Row(
             dcc.Loading(
@@ -236,19 +290,7 @@ app_layout = dbc.Container(
             )
         ),
         html.Br(),
-        dbc.Row(
-            dbc.Col(
-                [
-                    plotly_js_warning,
-                    dbc.Button(
-                        "Toggle Instruction",
-                        color="primary",
-                        id="plotly-warning-toggle",
-                    ),
-                ],
-                width=4,
-            )
-        ),
+        add_gap_row,
         html.Br(),
         dbc.Tabs([strategy_tab, scatterplot_tab, lineplot_tab, distplot_tab]),
         html.Br(),
