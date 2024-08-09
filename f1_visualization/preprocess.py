@@ -561,10 +561,7 @@ def add_lap_rep_deltas(df_laps: pd.DataFrame) -> pd.DataFrame:
         (df_laps["LapTime"] - df_laps["LapTime_Rep"]) / df_laps["LapTime_Rep"] * 100
     ).round(decimals=3)
 
-    # all data engineering functions fully modify the dataframe in addition to returning them
-    # this is so this function can be called similarly to others in transform
-    df_laps = df_laps.drop(columns=["LapTime_Rep"])
-    return df_laps  # noqa: RET504
+    return df_laps.drop(columns=["LapTime_Rep"])
 
 
 def find_diff(season: int, dfs: dict[str, pd.DataFrame], session_type: str) -> pd.DataFrame:
